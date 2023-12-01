@@ -13,24 +13,21 @@ fn to_num_str(num: &str) -> &str {
     }
 }
 
+const NUM_STR: [&str; 19] = [
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "one", "two", "three", "four", "five", "six",
+    "seven", "eight", "nine",
+];
+
 fn find_num(s: &str, first: bool) -> &str {
-    let num_strs = [
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "one", "two", "three", "four", "five",
-        "six", "seven", "eight", "nine",
-    ];
     if first {
         let mut min_index = s.len();
         let mut min_num: Option<&str> = None;
-        for num in num_strs {
-            println!("checknig for {} in line {}", num, s);
+        for num in NUM_STR {
             if let Some(index) = s.find(num) {
-                println!("we found  {} in line {}", num, s);
                 if index < min_index {
                     min_index = index;
                     min_num = Some(num);
                 }
-            } else {
-                println!("no find");
             }
         }
         return min_num.unwrap();
@@ -38,13 +35,8 @@ fn find_num(s: &str, first: bool) -> &str {
 
     let mut max_index: usize = 0;
     let mut max_num: Option<&str> = None;
-    for num in num_strs {
-        println!("finding {} in line {} reverse", num, s);
+    for num in NUM_STR {
         if let Some(index) = s.rfind(num) {
-            println!(
-                "found {} in line {} reverse, {} vs {}",
-                num, s, index, max_index
-            );
             if index >= max_index {
                 max_index = index;
                 max_num = Some(num);
