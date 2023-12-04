@@ -63,24 +63,27 @@ fn parse_input(input: &str) -> Cards {
 
 fn get_answer(input: &str) -> usize {
     let original_cards = parse_input(input);
-    let mut all_cards: Vec<&Card> = vec![];
+    let mut total_cards = 0usize;
     let mut unprocessed_cards: Vec<&Card> = original_cards.iter().collect();
-    while unprocessed_cards.len() > 0 {
-        let new_cards: Vec<&Card> = unprocessed_cards.into_iter().collect();
-        unprocessed_cards = vec![];
-        for card in new_cards {
-            all_cards.push(card);
+    loop {
+        total_cards += unprocessed_cards.len();
+        let mut new_cards: Vec<&Card> = Vec::new(); // won in this cycle
+        for card in unprocessed_cards {
+            // if it's a winner add the following N cards
             let num_matches = card.num_matches;
-            // if it's a winner add the following N cards to unprocessed
             if num_matches > 0 {
                 let to_add = (card.card_num)..(card.card_num + num_matches);
                 for j in to_add {
-                    unprocessed_cards.push(&original_cards.get((j) as usize).unwrap())
+                    new_cards.push(&original_cards.get((j) as usize).unwrap())
                 }
             }
         }
+        if new_cards.len() == 0 {
+            break;
+        }
+        unprocessed_cards = new_cards;
     }
-    all_cards.len()
+    total_cards
 }
 
 #[cfg(test)]
