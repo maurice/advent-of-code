@@ -1,3 +1,6 @@
+#![feature(test)]
+extern crate test;
+
 fn main() {
     let input = include_str!("../../input.txt");
     let answer = get_answer(input);
@@ -7,23 +10,21 @@ fn main() {
 #[derive(Debug)]
 struct Card {
     card_num: u8,
-    winning_numbers: Vec<u8>,
-    game_numbers: Vec<u8>,
+    // winning_numbers: Vec<u8>,
+    // game_numbers: Vec<u8>,
+    num_matches: u8,
 }
 
-impl Card {
-    // could be pre-computed to make it faster?
-    fn num_matches(&self) -> u8 {
-        self.game_numbers
-            .iter()
-            .map(|number| {
-                if self.winning_numbers.contains(number) {
-                    return 1;
-                }
-                0
-            })
-            .sum()
-    }
+fn num_matches(winning_numbers: &Vec<u8>, game_numbers: &Vec<u8>) -> u8 {
+    winning_numbers
+        .iter()
+        .map(|number| {
+            if game_numbers.contains(number) {
+                return 1;
+            }
+            0
+        })
+        .sum()
 }
 
 type Cards = Vec<Card>;
@@ -44,10 +45,14 @@ fn parse_line(line: &str) -> Card {
                 .collect()
         })
         .collect();
+    let winning_numbers = numbers.remove(0);
+    let game_numbers = numbers.remove(0);
+    let num_matches = num_matches(&winning_numbers, &game_numbers);
     Card {
         card_num,
-        winning_numbers: numbers.remove(0),
-        game_numbers: numbers.remove(0),
+        // winning_numbers,
+        // game_numbers,
+        num_matches,
     }
 }
 
@@ -65,7 +70,7 @@ fn get_answer(input: &str) -> usize {
         unprocessed_cards = vec![];
         for card in new_cards {
             all_cards.push(card);
-            let num_matches = card.num_matches();
+            let num_matches = card.num_matches;
             // if it's a winner add the following N cards to unprocessed
             if num_matches > 0 {
                 let to_add = (card.card_num)..(card.card_num + num_matches);
@@ -81,6 +86,7 @@ fn get_answer(input: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test::{black_box, Bencher};
 
     #[test]
     fn example() {
@@ -94,5 +100,14 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
 "#;
         let answer = get_answer(input);
         assert_eq!(answer, 30);
+    }
+
+    #[bench]
+    fn bench(b: &mut Bencher) {
+        let input = include_str!("../../input.txt");
+
+        b.iter(|| {
+            black_box(get_answer(input));
+        });
     }
 }
