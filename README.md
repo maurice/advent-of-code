@@ -19,4 +19,4 @@ My own solutions to [Advent Of Code 2023 puzzles][aoc_2023] in Rust.
 I would love feedback on what could be improved or made simpler, more idiomatic or faster.
 
 
-[aoc_2023]
+[aoc_2023]: https://adventofcode.com/2023
