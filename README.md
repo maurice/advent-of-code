@@ -12,7 +12,7 @@ My own solutions to [Advent Of Code 2023 puzzles][aoc_2023] in Rust.
 * No copying/cheating
 * Simple (hopefully) idiomatic Rust
 * Probably very little beyond a working solution; my time is limited and this is for fun
-* Pure Rust where possible; I might some Crates where necessary, but I'd rather learn the standard library right now
+* Pure Rust where possible; I might use some Crates where necessary, but I'd rather learn the standard library right now
 
 ## Feedback
 
