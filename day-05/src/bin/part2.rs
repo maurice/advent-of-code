@@ -1,3 +1,5 @@
+use indicatif::ProgressIterator;
+
 fn main() {
     let input = include_str!("../../input.txt");
     let answer = get_answer(input);
@@ -17,7 +19,7 @@ struct Mapping {
 impl Mapping {
     fn map_source_to_dest(mappings: &Vec<Mapping>, source: usize) -> usize {
         let mapping = mappings.iter().find(|mapping| {
-            mapping.source_start <= source && mapping.source_start + mapping.len >= source
+            mapping.source_start <= source && mapping.source_start + mapping.len > source
         });
         match mapping {
             None => source,
@@ -26,8 +28,8 @@ impl Mapping {
                 source_start,
                 ..
             }) => {
-                let delta: isize = *dest_start as isize - *source_start as isize; // yucky :-(
-                return (source as isize + delta) as usize;
+                let offset = source - source_start;
+                return dest_start + offset;
             }
         }
     }
@@ -138,12 +140,14 @@ fn get_answer(input: &str) -> usize {
     let (seeds, mappings) = parse_input(input);
     let seed_start = seeds.iter().step_by(2);
     let seed_len = seeds.iter().skip(1).step_by(2);
-    seed_start
+    let result = seed_start
         .zip(seed_len)
+        .progress()
         .flat_map(|(start, len)| *start..(*start + *len))
         .map(|seed| mappings.get_location_for_seed(seed))
         .min()
-        .expect("closest location")
+        .expect("closest location");
+    result
 }
 
 #[cfg(test)]
