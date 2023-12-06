@@ -93,47 +93,73 @@ fn parse_input<'a>(input: &'a str) -> (Vec<Dir>, Graph<'a>) {
 fn get_answer(input: &str) -> usize {
     let (directions, graph) = parse_input(input);
     println!("got directions {:?}, graph {:?}", directions, graph);
-    let mut current_nodes: Vec<usize> = graph
+    let starting_nodes: Vec<usize> = graph
         .names
         .iter()
         .enumerate()
         .filter_map(|(index, name)| name.ends_with("A").then_some(index))
         .collect();
-    println!("checking {} simultaneously", current_nodes.len());
-    let mut moves = 0;
-    loop {
-        if current_nodes.iter().all(|index| {
-            graph
-                .names
-                .get(*index)
-                .expect("valid index {index}")
-                .ends_with("Z")
-        }) {
-            break;
-        }
-        let move_index = moves % directions.len();
-        let move_dir = directions
-            .get(move_index)
-            .expect("direction at index {move_index} should exist");
-        // println!(
-        //     "current_nodes {:?}, current moves {}, move_index {}, move_dir {:?}",
-        //     current_nodes, moves, move_index, move_dir
-        // );
-        let transition = match move_dir {
-            Dir::Left => &graph.left,
-            Dir::Right => &graph.right,
-        };
-        current_nodes = current_nodes
-            .iter()
-            .map(|index| {
-                *transition
-                    .get(*index)
-                    .expect("valid {move_dir} index {index}")
-            })
-            .collect();
-        moves += 1;
+    println!("{} starting nodes", starting_nodes.len());
+
+    let moves: Vec<_> = starting_nodes
+        .iter()
+        .map(|starting_index| {
+            let mut current_index = starting_index;
+            let mut moves = 0;
+            loop {
+                if graph
+                    .names
+                    .get(*current_index)
+                    .expect("valid index {current_index}")
+                    .ends_with("Z")
+                {
+                    break;
+                }
+                let move_index = moves % directions.len();
+                let move_dir = directions
+                    .get(move_index)
+                    .expect("direction at index {move_index} should exist");
+                // println!(
+                //     "current_nodes {:?}, current moves {}, move_index {}, move_dir {:?}",
+                //     current_nodes, moves, move_index, move_dir
+                // );
+                let transition = match move_dir {
+                    Dir::Left => &graph.left,
+                    Dir::Right => &graph.right,
+                };
+                current_index = transition
+                    .get(*current_index)
+                    .expect("valid {move_dir} index {index}");
+                moves += 1;
+            }
+            moves
+        })
+        .collect();
+
+    moves.iter().fold(1, |total, num| lcm(total, *num))
+}
+
+// following two functions stolen from https://rustp.org/number-theory/lcm/
+fn gcd(mut a: usize, mut b: usize) -> usize {
+    if a == b {
+        return a;
     }
-    moves
+    if b > a {
+        let temp = a;
+        a = b;
+        b = temp;
+    }
+    while b > 0 {
+        let temp = a;
+        a = b;
+        b = temp % b;
+    }
+    return a;
+}
+
+fn lcm(a: usize, b: usize) -> usize {
+    // LCM = a*b / gcd
+    return a * (b / gcd(a, b));
 }
 
 #[cfg(test)]
