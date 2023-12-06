@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -23,9 +21,10 @@ enum Dir {
 }
 
 #[derive(Debug)]
-struct Pair<'a> {
-    left: &'a str,
-    right: &'a str,
+struct Graph<'a> {
+    names: Vec<&'a str>, // list of names
+    left: Vec<usize>,    // left move to `names` index
+    right: Vec<usize>,   // right move to `names` index
 }
 
 fn parse_dirs(input: &str) -> IResult<&str, Vec<Dir>> {
@@ -53,17 +52,27 @@ fn parse_node(input: &str) -> IResult<&str, (&str, (&str, &str))> {
     )(input)
 }
 
-fn map_nodes<'a>(vec: Vec<(&'a str, (&'a str, &'a str))>) -> HashMap<&'a str, Pair<'a>> {
-    vec.iter().fold(HashMap::new(), |mut map, (key, lr)| {
-        map.insert(
-            *key,
-            Pair {
-                left: lr.0,
-                right: lr.1,
-            },
+fn map_nodes<'a>(vec: Vec<(&'a str, (&'a str, &'a str))>) -> Graph<'a> {
+    let names: Vec<&'a str> = vec.iter().map(|t| t.0).collect();
+    let mut left: Vec<usize> = vec![];
+    let mut right: Vec<usize> = vec![];
+    for element in vec {
+        left.push(
+            names
+                .iter()
+                .enumerate()
+                .find_map(|(index, entry_name)| (entry_name == &element.1 .0).then_some(index))
+                .unwrap(),
         );
-        map
-    })
+        right.push(
+            names
+                .iter()
+                .enumerate()
+                .find_map(|(index, entry_name)| (entry_name == &element.1 .1).then_some(index))
+                .unwrap(),
+        );
+    }
+    Graph { names, left, right }
 }
 
 fn parse_nodes<'a>(input: &str) -> IResult<&str, Vec<(&str, (&str, &str))>> {
@@ -74,7 +83,7 @@ fn parse_nodes<'a>(input: &str) -> IResult<&str, Vec<(&str, (&str, &str))>> {
         .parse(input)
 }
 
-fn parse_input<'a>(input: &'a str) -> (Vec<Dir>, HashMap<&'a str, Pair<'a>>) {
+fn parse_input<'a>(input: &'a str) -> (Vec<Dir>, Graph<'a>) {
     let (input, directions) = parse_dirs(input).expect("valid parse");
     let (_, nodes) = parse_nodes(input).expect("a valid parse");
     let nodes = map_nodes(nodes);
@@ -82,36 +91,46 @@ fn parse_input<'a>(input: &'a str) -> (Vec<Dir>, HashMap<&'a str, Pair<'a>>) {
 }
 
 fn get_answer(input: &str) -> usize {
-    let (directions, nodes) = parse_input(input);
-    println!("got directions {:?}, nodes {:?}", directions, nodes);
-    let mut current_nodes: Vec<&&str> = nodes.keys().filter(|name| name.ends_with("A")).collect();
+    let (directions, graph) = parse_input(input);
+    println!("got directions {:?}, graph {:?}", directions, graph);
+    let mut current_nodes: Vec<usize> = graph
+        .names
+        .iter()
+        .enumerate()
+        .filter_map(|(index, name)| name.ends_with("A").then_some(index))
+        .collect();
+    println!("checking {} simultaneously", current_nodes.len());
     let mut moves = 0;
     loop {
-        if current_nodes.iter().all(|name| name.ends_with("Z")) {
+        if current_nodes.iter().all(|index| {
+            graph
+                .names
+                .get(*index)
+                .expect("valid index {index}")
+                .ends_with("Z")
+        }) {
             break;
         }
         let move_index = moves % directions.len();
         let move_dir = directions
             .get(move_index)
             .expect("direction at index {move_index} should exist");
-        // let pairs: Vec<&Pair> = current_nodes
-        //     .iter()
-        //     .map(|name| nodes.get(*name).expect("node {current_node} should exist"))
-        //     .collect();
         // println!(
         //     "current_nodes {:?}, current moves {}, move_index {}, move_dir {:?}",
         //     current_nodes, moves, move_index, move_dir
         // );
-        current_nodes = match move_dir {
-            Dir::Left => current_nodes
-                .iter()
-                .map(|name| &nodes.get(*name).expect("missing node {name}").left)
-                .collect(),
-            Dir::Right => current_nodes
-                .iter()
-                .map(|name| &nodes.get(*name).expect("missing node {name}").right)
-                .collect(),
+        let transition = match move_dir {
+            Dir::Left => &graph.left,
+            Dir::Right => &graph.right,
         };
+        current_nodes = current_nodes
+            .iter()
+            .map(|index| {
+                *transition
+                    .get(*index)
+                    .expect("valid {move_dir} index {index}")
+            })
+            .collect();
         moves += 1;
     }
     moves
