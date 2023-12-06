@@ -23,12 +23,12 @@ impl Kind {
             map.entry(card).and_modify(|count| *count += 1).or_insert(1);
             map
         });
-        let num_jokers = counts.get(&'J').unwrap_or(&0).clone(); // clone to avoid simultaneous r/o + mut borrow
+        let num_jokers = *counts.get(&'J').unwrap_or(&0);
         if num_jokers > 0 && num_jokers < 5 {
             // for the purposes of ranking, increase the already-highest non-joker card count by the number of jokers
             let (card, count) = counts
                 .iter()
-                .filter(|(card, _)| card != &&'J')
+                .filter(|(card, _)| **card != 'J')
                 .max_by(|(_, a), (_, b)| a.cmp(b))
                 .unwrap();
             counts.insert(*card, count + num_jokers);
