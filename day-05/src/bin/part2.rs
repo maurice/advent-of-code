@@ -1,4 +1,6 @@
-use indicatif::ProgressIterator;
+use std::ops::Range;
+
+use rayon::prelude::*;
 
 fn main() {
     let input = include_str!("../../input.txt");
@@ -35,40 +37,17 @@ impl Mapping {
     }
 }
 
-#[derive(Debug)]
-struct Mappings {
-    seed_to_soil: Vec<Mapping>,
-    soil_to_fertilizer: Vec<Mapping>,
-    fertilizer_to_water: Vec<Mapping>,
-    water_to_light: Vec<Mapping>,
-    light_to_temperature: Vec<Mapping>,
-    temperature_to_humidity: Vec<Mapping>,
-    humidity_to_location: Vec<Mapping>,
+fn get_location_for_seed(mappings: &Vec<Vec<Mapping>>, seed: usize) -> usize {
+    mappings
+        .iter()
+        .fold(seed, |last, map| Mapping::map_source_to_dest(map, last))
 }
 
-impl Mappings {
-    fn get_location_for_seed(&self, seed: usize) -> usize {
-        // not sure if there is some pipeline operator or way to use iter to apply all these transforms slightly less imperatively?
-        let soil = Mapping::map_source_to_dest(&self.seed_to_soil, seed);
-        let fertilizer = Mapping::map_source_to_dest(&self.soil_to_fertilizer, soil);
-        let water = Mapping::map_source_to_dest(&self.fertilizer_to_water, fertilizer);
-        let light = Mapping::map_source_to_dest(&self.water_to_light, water);
-        let temperature = Mapping::map_source_to_dest(&self.light_to_temperature, light);
-        let humidity = Mapping::map_source_to_dest(&self.temperature_to_humidity, temperature);
-        let location = Mapping::map_source_to_dest(&self.humidity_to_location, humidity);
-        // println!(
-        //     "seed {}, soil {}, fertilizer {}, water {}, light {}, temperature {}, humidity {}, location {}",
-        //     seed, soil, fertilizer, water, light, temperature, humidity, location
-        // );
-        location
-    }
-}
+type Seeds = Vec<Range<usize>>;
 
-type Seeds = Vec<usize>;
-
-fn parse_input(input: &str) -> (Seeds, Mappings) {
+fn parse_input(input: &str) -> (Seeds, Vec<Vec<Mapping>>) {
     let mut lines = input.trim().lines();
-    let seeds: Seeds = lines
+    let seed_digits: Vec<usize> = lines
         .next()
         .unwrap()
         .split(": ")
@@ -78,34 +57,24 @@ fn parse_input(input: &str) -> (Seeds, Mappings) {
         .filter_map(|s| s.parse().ok())
         .collect();
 
-    let mut seed_to_soil: Vec<Mapping> = Vec::new();
-    let mut soil_to_fertilizer: Vec<Mapping> = Vec::new();
-    let mut fertilizer_to_water: Vec<Mapping> = Vec::new();
-    let mut water_to_light: Vec<Mapping> = Vec::new();
-    let mut light_to_temperature: Vec<Mapping> = Vec::new();
-    let mut temperature_to_humidity: Vec<Mapping> = Vec::new();
-    let mut humidity_to_location: Vec<Mapping> = Vec::new();
+    let seed_start = seed_digits.iter().step_by(2);
+    let seed_len = seed_digits.iter().skip(1).step_by(2);
+    let seeds: Seeds = seed_start
+        .zip(seed_len)
+        .map(|(start, len)| *start..(*start + *len))
+        .collect();
 
     // parse mappings
-    let mut current_mappings = &mut seed_to_soil;
+    let mut mappings: Vec<Vec<Mapping>> = Vec::new();
+    let mut current_map: Vec<Mapping> = Vec::new();
     for line in lines {
         if line == "" {
             continue;
         }
 
         if line.ends_with(":") {
-            match line {
-                "seed-to-soil map:" => current_mappings = &mut seed_to_soil,
-                "soil-to-fertilizer map:" => current_mappings = &mut soil_to_fertilizer,
-                "fertilizer-to-water map:" => current_mappings = &mut fertilizer_to_water,
-                "water-to-light map:" => current_mappings = &mut water_to_light,
-                "light-to-temperature map:" => current_mappings = &mut light_to_temperature,
-                "temperature-to-humidity map:" => current_mappings = &mut temperature_to_humidity,
-                "humidity-to-location map:" => current_mappings = &mut humidity_to_location,
-                _ => {
-                    panic!("Unhandled map line: {}", line);
-                }
-            }
+            mappings.push(current_map);
+            current_map = Vec::new();
             continue;
         }
 
@@ -114,7 +83,7 @@ fn parse_input(input: &str) -> (Seeds, Mappings) {
             let dest_start = numbers.get(0).expect("destination range start").to_owned();
             let source_start = numbers.get(1).expect("source range start").to_owned();
             let len = numbers.get(2).expect("length of range").to_owned();
-            current_mappings.push(Mapping {
+            current_map.push(Mapping {
                 dest_start,
                 source_start,
                 len,
@@ -122,29 +91,15 @@ fn parse_input(input: &str) -> (Seeds, Mappings) {
         }
     }
 
-    (
-        seeds,
-        Mappings {
-            seed_to_soil,
-            soil_to_fertilizer,
-            fertilizer_to_water,
-            water_to_light,
-            light_to_temperature,
-            temperature_to_humidity,
-            humidity_to_location,
-        },
-    )
+    (seeds, mappings)
 }
 
 fn get_answer(input: &str) -> usize {
     let (seeds, mappings) = parse_input(input);
-    let seed_start = seeds.iter().step_by(2);
-    let seed_len = seeds.iter().skip(1).step_by(2);
-    let result = seed_start
-        .zip(seed_len)
-        .progress()
-        .flat_map(|(start, len)| *start..(*start + *len))
-        .map(|seed| mappings.get_location_for_seed(seed))
+    let result = seeds
+        .par_iter()
+        .flat_map(|range| range.clone())
+        .map(|seed| get_location_for_seed(&mappings, seed))
         .min()
         .expect("closest location");
     result
