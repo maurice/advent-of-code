@@ -1,92 +1,62 @@
+use itertools::Itertools;
+
 fn main() {
     let input = include_str!("../../input.txt");
     let answer = get_answer(input);
     println!("answer {answer}");
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum Condition {
-    Working,
-    Damaged,
-    Unknown,
-}
-
 #[derive(Debug)]
-struct Record<'a> {
-    springs: Vec<Condition>,
-    checksum: &'a str,
+struct Record {
+    springs: String,
+    num_unknown: usize,
+    checksum: Vec<u32>,
 }
 
-impl<'a> Record<'a> {
-    fn num_unknown(&self) -> usize {
-        self.springs
-            .iter()
-            .filter(|spring| spring == &&Condition::Unknown)
-            .count()
+fn is_valid(springs: &str, checksum: &Vec<u32>) -> bool {
+    let counts = springs
+        .chars()
+        .group_by(|c| c == &'#')
+        .into_iter()
+        .filter_map(|(is_hashes, group)| is_hashes.then_some(group.into_iter().count() as u32))
+        .collect::<Vec<u32>>();
+    let valid = checksum == &counts;
+    if valid {
+        println!(
+            "springs {} is valid {} according to {:?}",
+            springs, valid, checksum
+        );
     }
+    valid
+}
 
-    fn with_toggled_unknowns(&self, bits: u32) -> Self {
-        // convert all unknowns up-front - iter/enumerate over them and turn then on off as per bits...
-        let mut known_unknowns = (0..self.num_unknown())
-            .map(|index| {
+fn unknowns_to_knowns(springs: &str, bits: &u64) -> String {
+    let mut unknown_index = 0;
+    springs
+        .chars()
+        .map(|ch| match ch {
+            '?' => {
+                let index = unknown_index;
+                unknown_index += 1;
                 if bits & (1 << index) != 0 {
-                    Condition::Working
+                    '.'
                 } else {
-                    Condition::Damaged
+                    '#'
                 }
-            })
-            .collect::<Vec<Condition>>();
-        // println!(
-        //     "for bits {} we generated known_unknowns {:?}",
-        //     bits, known_unknowns
-        // );
+            }
+            _ => ch,
+        })
+        .collect()
+}
 
-        let springs = self
-            .springs
-            .iter()
-            .map(|spring| match spring {
-                // ...then simply pop the next one off when we map them
-                Condition::Unknown => known_unknowns.remove(0),
-                Condition::Damaged => Condition::Damaged,
-                Condition::Working => Condition::Working,
-            })
-            .collect();
-        Record {
-            springs,
-            checksum: self.checksum,
-        }
-    }
-
-    fn is_valid(&self) -> bool {
-        if self.springs.iter().any(|s| s == &Condition::Unknown) {
-            return false;
-        }
-
-        // convert the springs back string representation
-        let s = self
-            .springs
-            .iter()
-            .map(|s| match s {
-                Condition::Working => ".",
-                Condition::Damaged => "#",
-                Condition::Unknown => panic!("unexpected unknown"),
-            })
-            .collect::<String>();
-
-        // convert the string into a checksum like "4,1,2"
-        let sum: String = s
-            .split(".")
-            .filter(|s| s.len() != 0)
-            .map(|s| s.len().to_string())
-            .collect::<Vec<String>>()
-            .join(",");
-
-        // compare this sum with original checksum
-        sum == self.checksum
+impl Record {
+    fn is_valid_with_toggled_unknowns(&self, bits: &u64) -> bool {
+        let springs = unknowns_to_knowns(&self.springs, bits);
+        is_valid(&springs, &self.checksum)
     }
 }
 
-type Records<'a> = Vec<Record<'a>>;
+type Records = Vec<Record>;
 
 // ???.### 1,1,3
 fn parse_record(line: &str) -> Record {
@@ -94,17 +64,15 @@ fn parse_record(line: &str) -> Record {
         panic!("line '{}' does not match record format", line);
     };
 
-    let springs: Vec<Condition> = springs
-        .chars()
-        .map(|ch| match ch {
-            '.' => Condition::Working,
-            '#' => Condition::Damaged,
-            '?' => Condition::Unknown,
-            _ => panic!("Unexpected condition symbol '{ch}'"),
-        })
-        .collect();
+    let num_unknown = springs.chars().filter(|c| c == &'?').count();
 
-    Record { springs, checksum }
+    let checksum: Vec<u32> = checksum.split(",").map(|s| s.parse().unwrap()).collect();
+
+    Record {
+        springs: springs.to_string(),
+        checksum,
+        num_unknown,
+    }
 }
 
 fn parse_input(input: &str) -> Records {
@@ -115,12 +83,16 @@ fn get_answer(input: &str) -> usize {
     let records = parse_input(input);
     records
         .iter()
-        .map(|record| {
-            let combinations = 2u32.pow(record.num_unknown() as u32);
+        .enumerate()
+        .map(|(index, record)| {
+            let combinations = 2u64.pow(record.num_unknown as u32);
+            println!(
+                "counting valid of {} possible combinations for {} unknowns, record {}",
+                combinations, record.num_unknown, index,
+            );
             (0..combinations)
                 .into_iter()
-                .map(|bits| record.with_toggled_unknowns(bits))
-                .filter(|r2| r2.is_valid())
+                .filter(|bits| record.is_valid_with_toggled_unknowns(bits))
                 .count()
         })
         .sum()
