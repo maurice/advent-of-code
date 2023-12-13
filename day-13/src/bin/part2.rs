@@ -2,6 +2,7 @@ fn main() {
     let input = include_str!("../../input.txt");
     let answer = get_answer(input);
     println!("answer {answer}");
+    assert_eq!(31947, answer);
 }
 
 #[derive(Debug)]
@@ -17,21 +18,35 @@ impl Grid {
         self.chars.get(index).unwrap()
     }
 
-    fn count_col_mirror_smudges(&self, left: &usize, right: &usize) -> usize {
+    fn count_col_mirror_smudges(&self, x1: &usize, x2: &usize) -> usize {
         (0..self.row_len)
             .into_iter()
-            .filter(|row_index| self.get_char(left, &row_index) != self.get_char(right, &row_index))
+            .filter(|y| self.get_char(x1, &y) != self.get_char(x2, &y))
             .count()
     }
 
-    fn count_row_mirror_smudges(&self, above: &usize, below: &usize) -> usize {
+    fn count_row_mirror_smudges(&self, y1: &usize, y2: &usize) -> usize {
         (0..self.col_len)
             .into_iter()
-            .filter(|col_index| {
-                self.get_char(&col_index, above) != self.get_char(&col_index, below)
-            })
+            .filter(|x| self.get_char(&x, y1) != self.get_char(&x, y2))
             .count()
     }
+}
+
+type Pairs = Vec<(usize /* a */, usize /* b */)>;
+
+type MirrorPairs = (usize /* mirror index */, Pairs);
+
+fn pairs_iter(len: usize) -> impl Iterator<Item = MirrorPairs> {
+    (0..len - 1).into_iter().map(move |i| {
+        (
+            i,
+            (0..((i + 1).min(len - i - 1)))
+                .into_iter()
+                .map(move |j| (i - j, i + j + 1))
+                .collect(),
+        )
+    })
 }
 
 fn parse_input(input: &str) -> Vec<Grid> {
@@ -72,56 +87,36 @@ fn get_answer(input: &str) -> usize {
     grids
         .iter()
         .map(|grid| {
-            // todo clearly the below is quite copy-pasta so could be refactored in production code;
-            // here I'm just concerned with solving the puzzle
-            if let Some(mirror_row) = (0..grid.row_len - 1).find_map(|row_index| {
-                // compare every increasingly wider pair of rows at each row-index 1..len-1
-                let mut offset = 0;
+            // compare every increasingly wider pair of rows at each row-index
+            if let Some(mirror_row) = pairs_iter(grid.row_len).find_map(|(row_index, pairs)| {
                 let mut num_smudges = 0;
-                loop {
-                    let above = row_index.checked_sub(offset);
-                    let below = row_index + offset + 1;
-                    let Some(above) = above else {
-                        break;
-                    };
-                    if below >= grid.row_len {
-                        break;
-                    }
-                    num_smudges += grid.count_row_mirror_smudges(&above, &below);
+                for (a, b) in pairs {
+                    num_smudges += grid.count_row_mirror_smudges(&a, &b);
                     if num_smudges > 1 {
                         return None;
                     }
-                    offset += 1;
                 }
                 (num_smudges == 1).then_some(row_index + 1)
             }) {
                 println!("mirror row {}", mirror_row);
                 return mirror_row * 100;
             }
-            if let Some(mirror_col) = (0..grid.col_len - 1).find_map(|col_index| {
-                // compare every increasingly wider pair of columns at each col-index 1..len-1
-                let mut offset = 0;
+
+            // compare every increasingly wider pair of columns at each col-index
+            if let Some(mirror_col) = pairs_iter(grid.col_len).find_map(|(col_index, pairs)| {
                 let mut num_smudges = 0;
-                loop {
-                    let left = col_index.checked_sub(offset);
-                    let right = col_index + offset + 1;
-                    let Some(left) = left else {
-                        break;
-                    };
-                    if right >= grid.col_len {
-                        break;
-                    }
-                    num_smudges += grid.count_col_mirror_smudges(&left, &right);
+                for (a, b) in pairs {
+                    num_smudges += grid.count_col_mirror_smudges(&a, &b);
                     if num_smudges > 1 {
                         return None;
                     }
-                    offset += 1;
                 }
                 (num_smudges == 1).then_some(col_index + 1)
             }) {
                 println!("mirror col {}", mirror_col);
                 return mirror_col;
             }
+
             panic!("did not find a mirror row or col for grid {:?}", grid);
         })
         .sum()
