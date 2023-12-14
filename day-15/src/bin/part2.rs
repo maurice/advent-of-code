@@ -43,8 +43,7 @@ type Lenses = Vec<Lens>;
 fn replace_lens(lenses: &mut Lenses, label: &str, with_lens: Option<Lens>) {
     if let Some(index) = lenses
         .iter()
-        .enumerate()
-        .find_map(|(index, (lens_label, _))| (lens_label == label).then_some(index))
+        .position(|(lens_label, _)| lens_label == label)
     {
         lenses.remove(index);
         if let Some((_, focal_length)) = with_lens {
