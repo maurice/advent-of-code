@@ -91,7 +91,6 @@ fn get_next_move(sketch: &Sketch, prev_move: &Move) -> Option<Move> {
         direction,
         point: current_point,
         move_num,
-        ..
     } = prev_move;
     match direction {
         Direction::North if current_point.y > 0 => {
