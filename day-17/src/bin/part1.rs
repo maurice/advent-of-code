@@ -18,7 +18,7 @@ enum Direction {
 struct Grid {
     col_len: usize,
     row_len: usize,
-    chars: Vec<char>,
+    numbers: Vec<u32>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -28,9 +28,9 @@ struct Point {
 }
 
 impl Grid {
-    fn get_char(&self, point: &Point) -> char {
+    fn get_number(&self, point: &Point) -> u32 {
         let index = point.y * self.col_len + point.x % self.col_len;
-        self.chars.get(index).unwrap().clone()
+        self.numbers.get(index).unwrap().clone()
     }
 
     fn get_next(&self, point: &Point, direction: &Direction) -> Option<Point> {
@@ -56,12 +56,16 @@ impl Grid {
 }
 
 fn parse_input(input: &str) -> Grid {
-    let chars = input.trim().lines().flat_map(|s| s.chars()).collect();
+    let numbers = input
+        .trim()
+        .lines()
+        .flat_map(|s| s.chars().map(|c| c.to_digit(10).unwrap()))
+        .collect();
     let col_len = input.trim().lines().next().unwrap().len();
     let row_len = input.trim().lines().count();
     println!("row_len {row_len}, col_len {col_len}");
     Grid {
-        chars,
+        numbers,
         col_len,
         row_len,
     }
@@ -87,7 +91,7 @@ fn heat_loss(
     let tile = if num_moves == 0 {
         0
     } else {
-        grid.get_char(&point).to_digit(10).unwrap() as usize
+        grid.get_number(&point) as usize
     };
     let path_total = path_total + tile;
     println!(
