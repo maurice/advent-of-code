@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 fn main() {
     let input = include_str!("../../input.txt");
@@ -122,85 +122,156 @@ impl Grid {
         .flatten()
         .collect()
     }
+
+    fn get_clearings(&self) -> HashSet<Point> {
+        let mut clearings = HashSet::new();
+        for (y, row) in self.rows.iter().enumerate() {
+            for (x, tile) in row.iter().enumerate() {
+                if tile == &Tile::Forest {
+                    continue;
+                }
+                let neighbours = self.get_neighbours(&Point { x, y });
+                let neighbours = neighbours
+                    .iter()
+                    .filter(|n| self.get(n) != &Tile::Forest)
+                    .collect::<Vec<_>>();
+                if neighbours.len() > 2 {
+                    clearings.insert(Point { x, y });
+                }
+            }
+        }
+        clearings
+    }
 }
 
 fn get_answer(input: &str) -> usize {
     let grid = Grid::from_input(input);
     // println!("got the grid {grid:?}");
 
+    // from the below only 5% of the grid is a clearing (more than 2 paths in/out),
+    // so the majority is single-track...
+    // let total_tiles = grid.rows.len() * grid.rows[0].len();
+    // let mut num_clearings = grid.get_clearings().len();
+    // println!(
+    //     "total tiles {}, num_clearings {}, so {}%",
+    //     total_tiles,
+    //     num_clearings,
+    //     (num_clearings as f32 / total_tiles as f32) * 100f32
+    // );
+
+    // so let's start at all the clearings and find their start and end points and distance
+    let start_point = grid.start_point();
+    let clearings = grid
+        .get_clearings()
+        .into_iter()
+        .map(|clearing| {
+            (
+                clearing.clone(),
+                grid.get_neighbours(&clearing)
+                    .into_iter()
+                    .filter(|neighbour| grid.get(&neighbour) != &Tile::Forest)
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut connections: HashMap<Point, Vec<(Point, i32)>> = HashMap::new();
+    for (clearing, tracks) in clearings {
+        for track in tracks {
+            if connections.contains_key(&track) {
+                println!("we already have this connection at {:?}", track);
+                continue;
+            }
+            println!("exploring track {:?} from clearing {:?}", track, clearing);
+            let mut visited = HashSet::new();
+            visited.insert(clearing.clone());
+            let mut distance = 1;
+            let mut current = track.clone();
+            loop {
+                visited.insert(current.clone());
+                let mut neighbours = grid
+                    .get_neighbours(&current)
+                    .into_iter()
+                    .filter(|n| !visited.contains(n) && grid.get(n) != &Tile::Forest)
+                    .collect::<Vec<_>>();
+                if neighbours.len() != 1 {
+                    println!("no longer on single track at {:?}, started at {:?}, distance {}, neighbours {:?}",
+                        current, clearing, distance, neighbours
+                    );
+                    connections
+                        .entry(clearing.clone())
+                        .and_modify(|entry| entry.push((current.clone(), distance)))
+                        .or_insert_with(|| vec![(current.clone(), distance)]);
+                    if current == start_point {
+                        connections.insert(start_point.clone(), vec![(clearing.clone(), distance)]);
+                    }
+                    break;
+                }
+                current = neighbours.remove(0);
+                distance += 1;
+            }
+        }
+    }
+
+    println!("got connections");
+    for (key, values) in &connections {
+        println!("{:?}: {:?}", key, values);
+    }
+
     // breadth-first flood, explore all nodes, finding the max at end
     let mut iter = 0;
-    let mut max = 0;
-    let mut dead_ends = HashSet::new();
-    let mut queue = vec![(grid.start_point(), None, 1, HashSet::new())];
+    let mut max: usize = 0;
+    let mut queue = vec![(grid.start_point(), 0, HashSet::new(), Vec::new())];
     while !queue.is_empty() {
         iter += 1;
-
-        // the input seems to be made up of entirely single-track path surrounded by forest on many
-        // sides, so the assumption is that a lot of those lead nowhere, and yet we must continue
-        // to search them every time if we don't have a way prevent this.
-        // So, `last_branch`` is the last place we took one of multiple neighbour options
-        // and we can therefore use it to remove entire branches from the search space if
-        // they turn out to be dead-ends, meaning we can avoid searching them again in future journeys
-        let (point, last_branch, distance, mut visited) = queue.remove(0);
-        visited.insert(point.clone());
-
-        // filter-out forest, already visited and known dead-ends
-        let neighbours = grid
-            .get_neighbours(&point)
-            .iter()
-            .map(|n| (n.clone(), grid.get(&n)))
-            .filter(|(n, tile)| {
-                tile != &&Tile::Forest
-                // && !dead_ends.contains(&Step {
-                //     from: point.clone(),
-                //     to: n.clone(),
-                // })
-            })
-            .collect::<Vec<_>>();
-
-        // if there are no viable neighbours, it's a dead-end
-        if neighbours.is_empty() {
-            println!("seems to be a dead end at {point:?} from {last_branch:?}");
-            dead_ends.insert(last_branch.expect("expected branch"));
-            continue;
-        }
-
-        let is_branch = neighbours.len() > 1;
-        for (neighbour, tile) in neighbours {
-            if visited.contains(&neighbour) {
-                continue;
-            }
-
-            if tile == &Tile::End {
-                println!(
-                    "reached end with distance {distance}, queue {}",
-                    queue.len()
-                );
-                max = max.max(distance);
-                continue;
-            }
-
-            assert!(tile != &Tile::Forest);
-            queue.push((
-                neighbour.clone(),
-                if is_branch {
-                    Some(Step {
-                        from: point.clone(),
-                        to: neighbour,
-                    })
-                } else {
-                    last_branch.clone()
-                },
-                distance + 1,
-                visited.clone(),
-            ));
-        }
-
-        // if iter > 10000 {
-        //     println!("** terminating early **");
+        // if iter > 10 {
         //     break;
         // }
+        let (point, distance, mut visited, mut route) = queue.remove(0);
+        visited.insert(point.clone());
+        route.push((point.clone(), distance));
+
+        let paths = connections.get(&point).expect("path from point");
+        // println!(
+        //     "at {:?} with distance {}, paths {:?}, queue len {}",
+        //     point,
+        //     distance,
+        //     paths,
+        //     queue.len()
+        // );
+        for path in paths {
+            if visited.contains(&path.0) {
+                // println!("already visited {:?} skipping", path);
+                continue;
+            }
+
+            let tile = grid.get(&path.0);
+            if tile == &Tile::End {
+                let prev_max = max;
+                max = max.max(distance + path.1 as usize);
+                if max > prev_max {
+                    println!(
+                        "reached end with distance {distance} plus {} route {:?}, queue {}",
+                        path.1,
+                        route,
+                        queue.len()
+                    );
+                }
+                continue;
+            }
+
+            // println!(
+            //     "queueing path {:?} making new distance {}",
+            //     path,
+            //     distance + path.1 as usize
+            // );
+            queue.push((
+                path.0.clone(),
+                distance + path.1 as usize,
+                visited.clone(),
+                route.clone(),
+            ));
+            // println!("added path {:?} to queue {:?}", path, queue);
+        }
     }
 
     max
