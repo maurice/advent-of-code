@@ -79,6 +79,17 @@ impl Grid {
             .expect("start point")
     }
 
+    fn end_point(&self) -> Point {
+        self.rows[self.rows.len() - 1]
+            .iter()
+            .position(|tile| tile == &Tile::End)
+            .map(|x| Point {
+                x,
+                y: self.rows.len() - 1,
+            })
+            .expect("end point")
+    }
+
     fn get(&self, point: &Point) -> &Tile {
         &self.rows[point.y][point.x]
     }
@@ -218,19 +229,17 @@ fn get_answer(input: &str) -> usize {
     }
 
     // breadth-first flood, explore all nodes, finding the max at end
-    let mut iter = 0;
+    let end_point = grid.end_point();
     let mut max: usize = 0;
     let mut queue = vec![(grid.start_point(), 0, HashSet::new(), Vec::new())];
     while !queue.is_empty() {
-        iter += 1;
-        // if iter > 10 {
-        //     break;
-        // }
-        let (point, distance, mut visited, mut route) = queue.remove(0);
+        let (point, distance, mut visited, mut route) = queue.remove(queue.len() - 1);
         visited.insert(point.clone());
         route.push((point.clone(), distance));
 
-        let paths = connections.get(&point).expect("path from point");
+        let paths = connections
+            .get(&point)
+            .expect(&format!("path from point {:?}", point));
         // println!(
         //     "at {:?} with distance {}, paths {:?}, queue len {}",
         //     point,
@@ -244,8 +253,7 @@ fn get_answer(input: &str) -> usize {
                 continue;
             }
 
-            let tile = grid.get(&path.0);
-            if tile == &Tile::End {
+            if path.0 == end_point {
                 let prev_max = max;
                 max = max.max(distance + path.1 as usize);
                 if max > prev_max {
