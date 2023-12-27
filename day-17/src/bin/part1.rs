@@ -141,48 +141,43 @@ fn shortest_path(grid: &Grid) -> usize {
         // );
 
         // queue all viable neighbours
-        if point.x > 0 && last_dir != Dir::Right && (last_dir != Dir::Left || dir_count < 3) {
-            unvisited.push((
-                point.to_left(),
-                heat_loss + grid.get_number(&point.to_left()),
-                Dir::Left,
-                last_dir.inc_or(&Dir::Left, dir_count, 1),
-                Some(point.clone()),
-            ));
-        };
-        if point.x + 1 < grid.col_len
+        let left =
+            if point.x > 0 && last_dir != Dir::Right && (last_dir != Dir::Left || dir_count < 3) {
+                Some(Dir::Left)
+            } else {
+                None
+            };
+        let right = if point.x + 1 < grid.col_len
             && last_dir != Dir::Left
             && (last_dir != Dir::Right || dir_count < 3)
         {
-            unvisited.push((
-                point.to_right(),
-                heat_loss + grid.get_number(&point.to_right()),
-                Dir::Right,
-                last_dir.inc_or(&Dir::Right, dir_count, 1),
-                Some(point.clone()),
-            ));
+            Some(Dir::Right)
+        } else {
+            None
         };
-        if point.y > 0 && last_dir != Dir::Down && (last_dir != Dir::Up || dir_count < 3) {
-            unvisited.push((
-                point.to_up(),
-                heat_loss + grid.get_number(&point.to_up()),
-                Dir::Up,
-                last_dir.inc_or(&Dir::Up, dir_count, 1),
-                Some(point.clone()),
-            ));
+        let up = if point.y > 0 && last_dir != Dir::Down && (last_dir != Dir::Up || dir_count < 3) {
+            Some(Dir::Up)
+        } else {
+            None
         };
-        if point.y + 1 < grid.row_len
+        let down = if point.y + 1 < grid.row_len
             && last_dir != Dir::Up
             && (last_dir != Dir::Down || dir_count < 3)
         {
-            unvisited.push((
-                point.to_down(),
-                heat_loss + grid.get_number(&point.to_down()),
-                Dir::Down,
-                last_dir.inc_or(&Dir::Down, dir_count, 1),
-                Some(point.clone()),
-            ));
+            Some(Dir::Down)
+        } else {
+            None
         };
+
+        [left, right, up, down]
+            .into_iter()
+            .flatten()
+            .for_each(|dir| {
+                let next_point = point.next(&dir);
+                let next_loss = heat_loss + grid.get_number(&next_point);
+                let next_count = last_dir.inc_or(&dir, dir_count, 1);
+                unvisited.push((next_point, next_loss, dir, next_count, Some(point.clone())));
+            });
 
         distances
             .entry(point.clone())
