@@ -1,24 +1,31 @@
-use std::collections::HashSet;
+use std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
 
 fn main() {
     let input = include_str!("../../input.txt");
     let answer = get_answer(input);
     println!("answer {answer}");
+    assert_eq!(answer, 916);
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-enum Direction {
+enum Dir {
     Up,
     Down,
     Left,
     Right,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct Grid {
-    col_len: usize,
-    row_len: usize,
-    numbers: Vec<u32>,
+impl Dir {
+    fn inc_or(&self, dir: &Dir, current: usize, default: usize) -> usize {
+        if self == dir {
+            current + 1
+        } else {
+            default
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -27,31 +34,56 @@ struct Point {
     y: usize,
 }
 
-impl Grid {
-    fn get_number(&self, point: &Point) -> u32 {
-        let index = point.y * self.col_len + point.x % self.col_len;
-        self.numbers.get(index).unwrap().clone()
+impl Point {
+    fn to_left(&self) -> Self {
+        Point {
+            x: self.x - 1,
+            y: self.y,
+        }
     }
 
-    fn get_next(&self, point: &Point, direction: &Direction) -> Option<Point> {
-        match direction {
-            Direction::Left => match point {
-                Point { x, y } if x + 1 == self.col_len => None,
-                Point { x, y } => Some(Point { x: x + 1, y: *y }),
-            },
-            Direction::Right => match point {
-                Point { x, y } if *x == 0 => None,
-                Point { x, y } => Some(Point { x: x - 1, y: *y }),
-            },
-            Direction::Up => match point {
-                Point { x, y } if *y == 0 => None,
-                Point { x, y } => Some(Point { x: *x, y: y - 1 }),
-            },
-            Direction::Down => match point {
-                Point { x, y } if *y + 1 == self.row_len => None,
-                Point { x, y } => Some(Point { x: *x, y: y + 1 }),
-            },
+    fn to_right(&self) -> Self {
+        Point {
+            x: self.x + 1,
+            y: self.y,
         }
+    }
+
+    fn to_up(&self) -> Self {
+        Point {
+            x: self.x,
+            y: self.y - 1,
+        }
+    }
+
+    fn to_down(&self) -> Self {
+        Point {
+            x: self.x,
+            y: self.y + 1,
+        }
+    }
+
+    fn next(&self, dir: &Dir) -> Self {
+        match dir {
+            Dir::Left => self.to_left(),
+            Dir::Right => self.to_right(),
+            Dir::Up => self.to_up(),
+            Dir::Down => self.to_down(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct Grid {
+    col_len: usize,
+    row_len: usize,
+    numbers: Vec<usize>,
+}
+
+impl Grid {
+    fn get_number(&self, point: &Point) -> usize {
+        let index = point.y * self.col_len + point.x % self.col_len;
+        self.numbers.get(index).unwrap().clone()
     }
 }
 
@@ -59,11 +91,10 @@ fn parse_input(input: &str) -> Grid {
     let numbers = input
         .trim()
         .lines()
-        .flat_map(|s| s.chars().map(|c| c.to_digit(10).unwrap()))
+        .flat_map(|s| s.chars().map(|c| c.to_digit(10).unwrap() as usize))
         .collect();
     let col_len = input.trim().lines().next().unwrap().len();
     let row_len = input.trim().lines().count();
-    println!("row_len {row_len}, col_len {col_len}");
     Grid {
         numbers,
         col_len,
@@ -79,190 +110,111 @@ struct Moves {
     down: u8,
 }
 
-fn heat_loss(
-    grid: &Grid,
-    point: Point,
-    moves: Moves,
-    num_moves: usize,
-    visited: &HashSet<Point>,
-    path_total: usize,
-    least_so_far: &mut usize,
-) {
-    let tile = if num_moves == 0 {
-        0
-    } else {
-        grid.get_number(&point) as usize
+fn shortest_path(grid: &Grid) -> usize {
+    let end = Point {
+        x: grid.col_len - 1,
+        y: grid.row_len - 1,
     };
-    let path_total = path_total + tile;
-    println!(
-        "point {:?}, moves {:?}, move_num {}, tile {}, path_total {}",
-        point, moves, num_moves, tile, path_total
-    );
+    let mut visited = HashSet::new();
+    let mut unvisited = vec![(Point { x: 0, y: 0 }, 0, Dir::Down, 0, None)];
+    let mut distances = HashMap::new();
 
-    // reached the end?
-    if point.x == grid.col_len - 1 && point.y == grid.row_len - 1 {
-        println!(
-            "{} got to last tile!, path_total {}, least_so_far {}, is better {}",
-            num_moves,
-            path_total,
-            least_so_far,
-            path_total < *least_so_far
-        );
-        if path_total < *least_so_far {
-            *least_so_far = path_total;
+    while !unvisited.is_empty() {
+        // get the next lowest unvisited block
+        let index = unvisited
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, t)| t.1)
+            .map(|(i, _)| i)
+            .unwrap();
+        let (point, heat_loss, last_dir, dir_count, previous) = unvisited.remove(index);
+        assert!(dir_count < 4);
+
+        if visited.contains(&(point.clone(), last_dir.clone(), dir_count)) {
+            // println!("already came to {point:?} with dir {last_dir:?} and count {dir_count}");
+            continue;
         }
-        return;
+        visited.insert((point.clone(), last_dir.clone(), dir_count));
+
+        // println!(
+        //     "at point {point:?}, heat loss {heat_loss}, last_dir {last_dir:?}, dir_count {dir_count}"
+        // );
+
+        // queue all viable neighbours
+        if point.x > 0 && last_dir != Dir::Right && (last_dir != Dir::Left || dir_count < 3) {
+            unvisited.push((
+                point.to_left(),
+                heat_loss + grid.get_number(&point.to_left()),
+                Dir::Left,
+                last_dir.inc_or(&Dir::Left, dir_count, 1),
+                Some(point.clone()),
+            ));
+        };
+        if point.x + 1 < grid.col_len
+            && last_dir != Dir::Left
+            && (last_dir != Dir::Right || dir_count < 3)
+        {
+            unvisited.push((
+                point.to_right(),
+                heat_loss + grid.get_number(&point.to_right()),
+                Dir::Right,
+                last_dir.inc_or(&Dir::Right, dir_count, 1),
+                Some(point.clone()),
+            ));
+        };
+        if point.y > 0 && last_dir != Dir::Down && (last_dir != Dir::Up || dir_count < 3) {
+            unvisited.push((
+                point.to_up(),
+                heat_loss + grid.get_number(&point.to_up()),
+                Dir::Up,
+                last_dir.inc_or(&Dir::Up, dir_count, 1),
+                Some(point.clone()),
+            ));
+        };
+        if point.y + 1 < grid.row_len
+            && last_dir != Dir::Up
+            && (last_dir != Dir::Down || dir_count < 3)
+        {
+            unvisited.push((
+                point.to_down(),
+                heat_loss + grid.get_number(&point.to_down()),
+                Dir::Down,
+                last_dir.inc_or(&Dir::Down, dir_count, 1),
+                Some(point.clone()),
+            ));
+        };
+
+        distances
+            .entry(point.clone())
+            .and_modify(|entry: &mut (usize, Option<Point>, Dir, usize)| {
+                if heat_loss < entry.0 {
+                    *entry = (heat_loss, previous.clone(), last_dir.clone(), dir_count)
+                }
+            })
+            .or_insert((heat_loss, previous, last_dir, dir_count));
     }
 
-    // if num_moves == 10 || num_moves == 11 {
-    //     println!("{} visited points {:?}", num_moves, visited);
+    // reconstruct shortest path
+    // println!("finished shortest path: {:?}", distances.get(&end));
+    // let mut point = Some(end.clone());
+    // let mut path = vec![];
+    // while let Some(current) = point {
+    //     let (hl, previous, last_dir, dir_count) = distances[&current].clone();
+    //     path.push((previous.clone(), last_dir.clone(), dir_count, hl));
+    //     point = previous.clone();
+    // }
+    // path.reverse();
+    // for it in path {
+    //     println!("{it:?}");
     // }
 
-    // prevent infinite loop if we've already been here
-    if visited.contains(&point) {
-        println!("{} already been here - dead end", num_moves);
-        return;
-    }
-
-    if path_total >= *least_so_far {
-        println!("{} already more than lowest", num_moves);
-        return;
-    }
-
-    // if *least_so_far != usize::MAX {
-    //     return;
-    // }
-
-    let mut visited = visited.clone();
-    visited.insert(point.clone());
-
-    if moves.right > 0 && point.x + 1 < grid.col_len {
-        println!("{} go right", num_moves);
-        heat_loss(
-            grid,
-            Point {
-                x: point.x + 1,
-                y: point.y,
-            },
-            Moves {
-                left: 0,
-                right: moves.right - 1,
-                up: 3,
-                down: 3,
-            },
-            num_moves + 1,
-            &visited,
-            path_total,
-            least_so_far,
-        );
-    } else {
-        println!("{} not go right", num_moves);
-    };
-
-    if moves.down > 0 && point.y + 1 < grid.row_len {
-        println!("{} go down", num_moves);
-        heat_loss(
-            grid,
-            Point {
-                x: point.x,
-                y: point.y + 1,
-            },
-            Moves {
-                left: 3,
-                right: 3,
-                up: 0,
-                down: moves.down - 1,
-            },
-            num_moves + 1,
-            &visited,
-            path_total,
-            least_so_far,
-        );
-    } else {
-        println!("{} not go down", num_moves);
-    };
-
-    if moves.left > 0 && point.x > 0 {
-        println!("{} go left", num_moves);
-        heat_loss(
-            grid,
-            Point {
-                x: point.x - 1,
-                y: point.y,
-            },
-            Moves {
-                left: moves.left - 1,
-                right: 0,
-                up: 3,
-                down: 3,
-            },
-            num_moves + 1,
-            &visited,
-            path_total,
-            least_so_far,
-        );
-    } else {
-        println!("{} not go left", num_moves);
-    };
-
-    if moves.up > 0 && point.y > 0 {
-        println!("{} go up", num_moves);
-        heat_loss(
-            grid,
-            Point {
-                x: point.x,
-                y: point.y - 1,
-            },
-            Moves {
-                left: 3,
-                right: 3,
-                up: moves.up - 1,
-                down: 0,
-            },
-            num_moves + 1,
-            &visited,
-            path_total,
-            least_so_far,
-        );
-    } else {
-        println!("{} not go up", num_moves);
-    };
-
-    // println!(
-    //     "end of move {}, left {:?}, right {:?}, up {:?}, down {:?}",
-    //     num_moves, left, right, up, down
-    // );
-
-    // match (left, right, up, down) {
-    //     (None, None, None, None) => None,
-    //     _ => Some(
-    //         tile + [left, right, up, down]
-    //             .into_iter()
-    //             .filter_map(|value| value)
-    //             .min()
-    //             .unwrap(),
-    //     ),
-    // }
+    distances[&end].0
 }
 
 fn get_answer(input: &str) -> usize {
     let grid = parse_input(input);
-    let mut least = usize::MAX;
-    heat_loss(
-        &grid,
-        Point { x: 0, y: 0 },
-        Moves {
-            right: 3,
-            down: 3,
-            up: 0,
-            left: 0,
-        },
-        0,
-        &HashSet::new(),
-        0,
-        &mut least,
-    );
-    least
+
+    shortest_path(&grid)
 }
 
 #[cfg(test)]
