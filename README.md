@@ -1,10 +1,10 @@
-# aoc-rust-2023
+# Advent of Code
 
-Advent of Code 2023 in Rust 🎄
+Advent of Code 🎄 in Rust 🦀
 
 ## What's this?
 
-My own solutions to [Advent Of Code 2023 puzzles][aoc_2023] in Rust.
+My own solutions to [Advent Of Code puzzles][aoc] in Rust.
 
 ## My approach
 
@@ -19,4 +19,4 @@ My own solutions to [Advent Of Code 2023 puzzles][aoc_2023] in Rust.
 I would love feedback on what could be improved or made simpler, more idiomatic or faster.
 
 
-[aoc_2023]: https://adventofcode.com/2023
+[aoc]: https://adventofcode.com
