@@ -26,12 +26,12 @@ mod tests {
     #[test]
     fn example_1() {
         let input = "abcdef";
-        assert_eq!(get_answer(input), 609043);
+        assert_eq!(get_answer(input), 6742839);
     }
 
     #[test]
     fn example_2() {
         let input = "pqrstuv";
-        assert_eq!(get_answer(input), 1048970);
+        assert_eq!(get_answer(input), 5714438);
     }
 }

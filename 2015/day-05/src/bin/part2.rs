@@ -5,7 +5,7 @@ fn main() {
     assert_eq!(answer, 69);
 }
 
-fn parse_input<'a>(input: &'a str) -> Vec<&'a str> {
+fn parse_input(input: &str) -> Vec<&str> {
     input.trim().lines().collect()
 }
 

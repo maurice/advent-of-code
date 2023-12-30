@@ -14,12 +14,12 @@ struct Edge<'a> {
 }
 
 // Snowdin to Straylight = 101
-fn parse_input<'a>(input: &'a str) -> Vec<(Edge<'a>, u16)> {
+fn parse_input(input: &str) -> Vec<(Edge, u16)> {
     input
         .trim()
         .lines()
         .map(|line| {
-            let mut iter = line.split(" ");
+            let mut iter = line.split(' ');
             let a = iter.next().expect("place 1");
             let _ = iter.next().expect("literal to");
             let b = iter.next().expect("place 2");
@@ -32,7 +32,7 @@ fn parse_input<'a>(input: &'a str) -> Vec<(Edge<'a>, u16)> {
 
 fn get_answer(input: &str) -> u16 {
     let mut graph = parse_input(input);
-    graph.sort_by_key(|(_, distance)| distance.clone());
+    graph.sort_by_key(|(_, distance)| *distance);
     println!("got graph {graph:?}");
 
     let total = graph

@@ -37,7 +37,7 @@ fn parse_input(input: &str) -> Vec<Present> {
         .trim()
         .lines()
         .map(|line| {
-            let mut nums = line.split("x").map(|s| s.parse().unwrap());
+            let mut nums = line.split('x').map(|s| s.parse().unwrap());
             Present::new(
                 nums.next().unwrap(),
                 nums.next().unwrap(),
@@ -50,15 +50,4 @@ fn parse_input(input: &str) -> Vec<Present> {
 fn get_answer(input: &str) -> u32 {
     let presents = parse_input(input);
     presents.iter().map(|p| p.paper()).sum()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn example() {
-        let input = "";
-        assert_eq!(get_answer(input), 42);
-    }
 }

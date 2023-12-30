@@ -16,9 +16,7 @@ fn get_answer(input: &str) -> usize {
             let ch = chars[i];
             i += 1;
             // escaped += 1;
-            if ch == '\\' {
-                escaped += 1; // for additional \
-            } else if ch == '"' {
+            if ch == '\\' || ch == '"' {
                 escaped += 1; // for additional \
             }
         }

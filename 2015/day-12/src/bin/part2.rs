@@ -12,7 +12,9 @@ fn parse_input(input: &str) -> Value {
 
 fn sum_numbers(value: &Value) -> i64 {
     match value {
-        Value::Number(num) => num.as_i64().expect(&format!("invalid  i64 number {}", num)),
+        Value::Number(num) => num
+            .as_i64()
+            .unwrap_or_else(|| panic!("invalid  i64 number {}", num)),
         Value::Array(values) => values.iter().map(sum_numbers).sum(),
         Value::Object(map) => {
             if map.values().any(|k| k == "red") {

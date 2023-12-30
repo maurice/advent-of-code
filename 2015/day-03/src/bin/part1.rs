@@ -6,10 +6,6 @@ fn main() {
     println!("answer {answer}");
 }
 
-// fn parse_input(input: &str) -> bool {
-//     true
-// }
-
 fn get_answer(input: &str) -> usize {
     let set = input
         .trim()
@@ -26,11 +22,11 @@ fn get_answer(input: &str) -> usize {
             Some(next_pos)
         })
         .fold(
-            (|| {
+            {
                 let mut set = HashSet::new();
                 set.insert((0, 0));
                 set
-            })(),
+            },
             |mut acc, pos| {
                 acc.insert(pos);
                 acc

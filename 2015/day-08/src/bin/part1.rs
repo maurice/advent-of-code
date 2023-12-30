@@ -15,16 +15,12 @@ fn get_answer(input: &str) -> usize {
             let ch = chars[i];
             i += 1;
             unescaped += 1;
-            if ch == '\\' {
-                if i < chars.len() {
-                    let ch2 = chars[i];
-                    if ch2 == '\\' {
-                        i += 1; // skip escape backslash
-                    } else if ch2 == '"' {
-                        i += 1; // skip lone quote
-                    } else if ch2 == 'x' {
-                        i += 3; // skip xNN
-                    }
+            if ch == '\\' && i < chars.len() {
+                let ch2 = chars[i];
+                if ch2 == '\\' || ch2 == '"' {
+                    i += 1; // skip escape backslash/lone quote
+                } else if ch2 == 'x' {
+                    i += 3; // skip xNN
                 }
             }
         }

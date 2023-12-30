@@ -34,9 +34,9 @@ enum Expr<'a> {
     Not(&'a str),
 }
 
-fn expr<'a>(input: &'a str) -> IResult<&'a str, Expr<'a>> {
+fn expr(input: &str) -> IResult<&str, Expr> {
     alt((
-        nom::combinator::map(preceded(tag("NOT "), alphanumeric1), |expr| Expr::Not(expr)),
+        nom::combinator::map(preceded(tag("NOT "), alphanumeric1), Expr::Not),
         nom::combinator::map(
             separated_pair(alphanumeric1, tag(" AND "), alphanumeric1),
             |(expr1, expr2)| Expr::And(expr1, expr2),
@@ -53,11 +53,11 @@ fn expr<'a>(input: &'a str) -> IResult<&'a str, Expr<'a>> {
             separated_pair(alphanumeric1, tag(" LSHIFT "), digit1),
             |(expr1, by)| Expr::LShift(expr1, by.parse().expect("valid digits")),
         ),
-        nom::combinator::map(alphanumeric1, |expr| Expr::Value(expr)),
+        nom::combinator::map(alphanumeric1, Expr::Value),
     ))(input)
 }
 
-fn parse_input<'a>(input: &'a str) -> IResult<&'a str, HashMap<&'a str, Expr<'a>>> {
+fn parse_input(input: &str) -> IResult<&str, HashMap<&str, Expr>> {
     nom::combinator::map(
         separated_list1(
             line_ending,
@@ -96,10 +96,7 @@ fn eval<'a>(
         Expr::RShift(expr1, by) => eval(expr1, machine, cache) >> by,
     };
 
-    if !cache.contains_key(&expr) {
-        cache.insert(expr, result);
-        // println!("cached {expr}, now {}", cache.len());
-    }
+    cache.entry(expr).or_insert(result);
     result
 }
 
@@ -107,15 +104,4 @@ fn get_answer(input: &str) -> u16 {
     let machine = parse_input(input).expect("valid machine").1;
     // println!("got machine {machine:?}");
     eval("a", &machine, &mut HashMap::new())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn example() {
-        let input = "";
-        assert_eq!(get_answer(input), 42);
-    }
 }

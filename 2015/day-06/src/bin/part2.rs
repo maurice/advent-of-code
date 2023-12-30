@@ -12,28 +12,26 @@ toggle 911,840 through 990,932
  */
 
 fn parse_point(input: &str) -> (usize, usize) {
-    let mut parts = input.split(",");
+    let mut parts = input.split(',');
     (
         parts
             .next()
             .expect("x")
             .parse::<usize>()
-            .expect(&format!("valid usize in first position {input}")),
+            .unwrap_or_else(|_| panic!("valid usize in first position {input}")),
         parts
             .next()
             .expect("y")
             .parse::<usize>()
-            .expect(&format!("valid usize in second position {input}")),
+            .unwrap_or_else(|_| panic!("valid usize in second position {input}")),
     )
 }
 
+#[allow(clippy::needless_range_loop)]
 fn get_answer(input: &str) -> usize {
-    let mut lights: Vec<Vec<u8>> = (0..1000)
-        .into_iter()
-        .map(|_| (0..1000).into_iter().map(|_| 0).collect())
-        .collect();
+    let mut lights: Vec<Vec<u8>> = (0..1000).map(|_| (0..1000).map(|_| 0).collect()).collect();
 
-    fn apply(instruction: &str, lights: &mut Vec<Vec<u8>>, p1: (usize, usize), p2: (usize, usize)) {
+    fn apply(instruction: &str, lights: &mut [Vec<u8>], p1: (usize, usize), p2: (usize, usize)) {
         for y in p1.1..=p2.1 {
             for x in p1.0..=p2.0 {
                 match instruction {
@@ -47,7 +45,7 @@ fn get_answer(input: &str) -> usize {
     }
 
     input.trim().lines().for_each(|line| {
-        let mut parts = line.split(" ");
+        let mut parts = line.split(' ');
         let mut instruction = parts.next().expect("instruction");
         if instruction == "turn" {
             instruction = parts.next().expect("instruction");

@@ -16,5 +16,5 @@ fn get_answer(input: &str) -> usize {
             return i + 1;
         }
     }
-    return 0;
+    0
 }

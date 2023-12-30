@@ -63,11 +63,7 @@ fn get_answer(input: &str) -> i32 {
         .collect::<HashMap<_, _>>();
     println!("got happiness {happiness:?}");
 
-    let names = happiness
-        .iter()
-        .map(|(k, v)| k.0)
-        .unique()
-        .collect::<Vec<_>>();
+    let names = happiness.keys().map(|k| k.0).unique().collect::<Vec<_>>();
     let combinations = names.iter().permutations(names.len()).collect::<Vec<_>>();
     println!("{} combinations", combinations.len());
 

@@ -42,7 +42,7 @@ fn parse_input(input: &str) -> Vec<Present> {
         .trim()
         .lines()
         .map(|line| {
-            let mut nums = line.split("x").map(|s| s.parse().unwrap());
+            let mut nums = line.split('x').map(|s| s.parse().unwrap());
             Present::new(
                 nums.next().unwrap(),
                 nums.next().unwrap(),
