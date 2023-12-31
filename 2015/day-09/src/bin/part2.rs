@@ -47,7 +47,8 @@ fn get_answer(input: &str) -> u16 {
     while visited.len() < total {
         for (edge, dist) in graph.iter() {
             // at least one ends is not visited?
-            if (!visited.contains(edge.a) || !visited.contains(edge.b)) 
+            if !visited.contains(edge.a)
+                || !visited.contains(edge.b)
                 // and it joins our current edges
                 && (edge.a == a || edge.b == a || edge.a == b || edge.b == b)
             {
